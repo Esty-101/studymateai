@@ -109,10 +109,9 @@ function App() {
 
   const handleSignUpSuccess = (newAcc) => {
     setAccounts((prev) => [...prev, newAcc]);
-    setCurrentUser({ name: newAcc.name, email: newAcc.email });
-    setIsAuthenticated(true);
-    setCurrentRoute('dashboard');
-    showToast(`Account created successfully! Welcome, ${newAcc.name}! 🎉`);
+    setIsAuthenticated(false);
+    setCurrentRoute('auth-login');
+    showToast(`Account created successfully! Please sign in to continue.`);
   };
 
   useEffect(() => {
@@ -766,7 +765,7 @@ function AskAIView({ showToast }) {
     scrollToBottom();
   }, [messages, isTyping]);
 
-  const handleSend = (queryToSend) => {
+  const handleSend = async (queryToSend) => {
     const q = queryToSend || inputQuery;
     if (!q.trim()) return;
 
@@ -781,36 +780,65 @@ function AskAIView({ showToast }) {
     if (!queryToSend) setInputQuery('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      let aiText = `Here is a detailed explanation for your question: "${q}".`;
-      let points = [
-        "Core concept analyzed step-by-step.",
-        "Key formulas and definitions highlighted.",
-        "Practical academic applications reviewed."
-      ];
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q })
+      });
 
-      if (q.toLowerCase().includes('cell') || q.toLowerCase().includes('biology')) {
-        aiText = "Cells are the basic structural, functional, and biological units of all known organisms. A cell is the smallest unit of life.";
-        points = [
-          "Organelles carry out specialized tasks within the cell.",
-          "Mitochondria produce cellular ATP energy.",
-          "DNA is housed within the cell nucleus."
-        ];
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to get answer from AI');
+      }
+
+      const rawAnswer = data.answer || '';
+      
+      let explanation = rawAnswer;
+      let keyPoints = [];
+
+      if (rawAnswer.includes('Key Points:')) {
+        const parts = rawAnswer.split('Key Points:');
+        explanation = parts[0].trim();
+        const bulletBlock = parts[1].trim();
+        keyPoints = bulletBlock
+          .split('\n')
+          .map(line => line.replace(/^[\s*•\-]+/, '').trim())
+          .filter(line => line.length > 0);
+      } else {
+        const lines = rawAnswer.split('\n').filter(l => l.trim().length > 0);
+        if (lines.length > 1) {
+          explanation = lines[0];
+          keyPoints = lines.slice(1).map(l => l.replace(/^[\s*•\-]+/, '').trim()).filter(Boolean);
+        }
       }
 
       const aiMsg = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: aiText,
-        keyPoints: points,
+        text: explanation,
+        keyPoints: keyPoints.length > 0 ? keyPoints : null,
         liked: false,
         disliked: false,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
 
       setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error("AI Error:", err);
+      const errorMsg = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: `Error connecting to StudyMate AI: ${err.message || 'Unable to fetch response.'}`,
+        liked: false,
+        disliked: false,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleCopy = (text) => {
