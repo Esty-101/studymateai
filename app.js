@@ -47,8 +47,8 @@ const Toast = ({ message, onClose }) => {
 // MAIN APPLICATION COMPONENT
 // ----------------------------------------------------------------------
 function App() {
-  const [currentRoute, setCurrentRoute] = useState('dashboard');
-  const [isAuthenticated, setIsAuthenticated] = useState(true);
+  const [currentRoute, setCurrentRoute] = useState('auth-welcome');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
